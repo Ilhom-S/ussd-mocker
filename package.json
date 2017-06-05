@@ -8,6 +8,7 @@
     "lodash": "^2.4.2",
     "randomstring": "^1.0.6",
     "superagent": "^0.18.2",
-    "validr": "^0.1.6"
+    "validr": "^0.1.6",
+    "jsontoxml": "*"
   }
 }

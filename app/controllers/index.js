@@ -2,6 +2,7 @@ var randomstring = require('randomstring')
   , Validr = require('validr')
   , Promise = require('bluebird')
   , request = require('superagent')
+  , jsonxml = require('jsontoxml')
   ;
 
 module.exports = {
@@ -14,7 +15,7 @@ module.exports = {
 };
 
 
-function index (req, res, next) {
+function index(req, res, next) {
   res.clearCookie('session');
   res.render('index', {
     ClientUrl: req.cookies.ClientUrl || 'http://127.0.0.1:8773/test',
@@ -25,9 +26,9 @@ function index (req, res, next) {
   });
 }
 
-function session (req, res, next) {
+function session(req, res, next) {
   var session = req.cookies.session;
-  if (!session) 
+  if (!session)
     return res.redirect('/');
   session.response.Message = session.response.Message
     .substr(0, 182)
@@ -39,7 +40,7 @@ function session (req, res, next) {
   });
 }
 
-function initiate (req, res, next) {
+function initiate(req, res, next) {
   var body = req.body;
   var errors = validateInitiate(body);
   if (errors) return res.redirect('/');
@@ -52,22 +53,22 @@ function initiate (req, res, next) {
     ServiceCode: serviceCode,
     Type: 'Initiation',
     Message: body.InitiationMessage || serviceCode,
-    Operator: body.Operator || body.Operator.toLowerCase() || 'mtn',
-    Sequence: 1      
+    Operator: body.Operator || body.Operator.toLowerCase() || 'Etisalat',
+    Sequence: 1
   };
   messageClient(session)
-  .then(function (session) {
-    res.cookie('session', session);
-    res.cookie('ClientUrl', session.ClientUrl);
-    res.cookie('ServiceCode', session.request.ServiceCode);
-    res.cookie('Mobile', session.request.Mobile);
-    res.cookie('Operator', session.request.Operator);
-    res.cookie('InitiationMessage', session.request.Message);
-    res.redirect('/session');
-  }).catch(next);
+    .then(function (session) {
+      res.cookie('session', session);
+      res.cookie('ClientUrl', session.ClientUrl);
+      res.cookie('ServiceCode', session.request.ServiceCode);
+      res.cookie('Mobile', session.request.Mobile);
+      res.cookie('Operator', session.request.Operator);
+      res.cookie('InitiationMessage', session.request.Message);
+      res.redirect('/session');
+    }).catch(next);
 }
 
-function response (req, res, next) {
+function response(req, res, next) {
   var session = req.cookies.session;
   if (!session) return res.redirect('/');
   session.request.Type = 'Response';
@@ -75,13 +76,13 @@ function response (req, res, next) {
   session.request.ClientState = session.response.ClientState || '';
   session.request.Sequence += 1;
   messageClient(session)
-  .then(function (session) {
-    res.cookie('session', session);
-    res.redirect('/session');
-  }).catch(next);
+    .then(function (session) {
+      res.cookie('session', session);
+      res.redirect('/session');
+    }).catch(next);
 }
 
-function release (req, res, next) {
+function release(req, res, next) {
   var session = req.cookies.session;
   if (!session) return res.redirect('/');
   session.request.Type = 'Release';
@@ -89,13 +90,13 @@ function release (req, res, next) {
   session.request.ClientState = session.response.ClientState || '';
   session.request.Sequence += 1;
   messageClient(session)
-  .then(function (session) {
-    res.cookie('session', session);
-    res.redirect('/session');
-  }).catch(next);
+    .then(function (session) {
+      res.cookie('session', session);
+      res.redirect('/session');
+    }).catch(next);
 }
 
-function timeout (req, res, next) {
+function timeout(req, res, next) {
   var session = req.cookies.session;
   if (!session) return res.redirect('/');
   session.request.Type = 'Timeout';
@@ -103,10 +104,10 @@ function timeout (req, res, next) {
   session.request.ClientState = session.response.ClientState || '';
   session.request.Sequence += 1;
   messageClient(session)
-  .then(function (session) {
-    res.cookie('session', session);
-    res.redirect('/session');
-  }).catch(next);
+    .then(function (session) {
+      res.cookie('session', session);
+      res.redirect('/session');
+    }).catch(next);
 }
 
 
@@ -120,21 +121,21 @@ function timeout (req, res, next) {
  * @param  {object} body
  * @return {bool}    
  */
-function validateInitiate (body) {
+function validateInitiate(body) {
   var validr = new Validr(body);
   validr.validate('Url', 'Url must be valid number.')
     .isLength(1).isURL();
   return validr.validationErrors(true);
 }
 
-function validateResponse (body) {
+function validateResponse(body) {
   var validr = new Validr(body);
   validr.validate('UserInput', 'User input must be valid number')
     .isLength(1).isNumeric();
   return validr.validationErrors(true);
 }
 
-function validateUssdResponse (body) {
+function validateUssdResponse(body) {
   var validr = new Validr(body);
   validr.validate('Type', 'Type is required.')
     .isLength(1);
@@ -149,7 +150,7 @@ function validateUssdResponse (body) {
  * @param  {object} body    session action request body
  * @return {object} 
  */
-function generateResponseRequest (session, body) {
+function generateResponseRequest(session, body) {
   return {
     Mobile: session.Mobile,
     SessionId: session.Id,
@@ -161,19 +162,19 @@ function generateResponseRequest (session, body) {
   };
 }
 
-function messageClient (session) {
+function messageClient(session) {
   return new Promise(function (resolve, reject) {
     request.post(session.ClientUrl)
-    .set('Content-Type', 'application/json')
-    .set('Accept', 'application/json')
-    .send(session.request)
-    .end(function (err, res) {
-      if (err) return reject(err);
-      if (!res.ok) 
-        return reject(new Error("Didn't get a successful response from client at "
-          + session.ClientUrl));
-      session.response = res.body;
-      resolve(session);
-    })
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(session.request)
+      .end(function (err, res) {
+        if (err) return reject(err);
+        if (!res.ok)
+          return reject(new Error("Didn't get a successful response from client at "
+            + session.ClientUrl));
+        session.response = res.body;
+        resolve(session);
+      })
   });
 }
